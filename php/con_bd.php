@@ -1,25 +1,25 @@
 <?php
-// CONFIGURACIÓN SIN HEADERS PREMATUROS
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
 }
 
-$host = "mysql-rodolfo.alwaysdata.net";
-$user = "rodolfo";
-$pass = "aonxd20";
-$bd = "rodolfo_scooperativo";
+$host = "localhost";
+$port = "5432";
+$dbname = "scooperativo";
+$user = "postgres";
+$password = "Pereda202020";
 
-$conex = new mysqli($host, $user, $pass, $bd);
+$conex = pg_connect("host=$host port=$port dbname=$dbname user=$user password=$password");
 
-if ($conex->connect_error) {
+if (!$conex) {
     if (!headers_sent()) {
         header('Content-Type: application/json');
     }
     die(json_encode([
         'success' => false,
-        'message' => 'Error de conexión: ' . $conex->connect_error
+        'message' => 'Error de conexión: ' . pg_last_error()
     ]));
 }
 
-$conex->set_charset("utf8mb4");
+pg_set_client_encoding($conex, "UTF8");
 ?>

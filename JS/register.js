@@ -1,4 +1,3 @@
-
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('registroForm');
     const mensaje = document.getElementById('mensajeRegistro');
@@ -8,6 +7,10 @@ document.addEventListener('DOMContentLoaded', function() {
         mensaje.className = tipo === 'error' ? 'mensaje-error' : 'mensaje-exito';
         mensaje.style.display = 'block';
         
+        // Scroll al mensaje
+        mensaje.scrollIntoView({ behavior: 'smooth' });
+        
+        // Auto-ocultar después de 5 segundos
         setTimeout(() => {
             mensaje.style.display = 'none';
         }, 5000);
@@ -48,98 +51,105 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function validarContrasena(contrasena) {
-        const regex = /^(?=.*[a-zA-Z])(?=.*\d).{6,}$/;
-        return regex.test(contrasena);
+        return contrasena.length >= 6; // Simplificado para mayor compatibilidad
     }
 
-    document.getElementById('nombre').addEventListener('blur', function() {
-        if (!validarNombre(this.value)) {
-            this.style.borderColor = '#e74c3c';
-        } else {
-            this.style.borderColor = '#27ae60';
-        }
-    });
+    // Validación en tiempo real
+    const campos = [
+        { id: 'nombre', validador: validarNombre },
+        { id: 'dni', validador: validarDNI },
+        { id: 'email', validador: validarEmail },
+        { id: 'telefono', validador: validarTelefono }
+    ];
 
-    document.getElementById('dni').addEventListener('blur', function() {
-        if (!validarDNI(this.value)) {
-            this.style.borderColor = '#e74c3c';
-        } else {
-            this.style.borderColor = '#27ae60';
-        }
-    });
+    campos.forEach(campo => {
+        const elemento = document.getElementById(campo.id);
+        if (elemento) {
+            elemento.addEventListener('blur', function() {
+                if (this.value.trim() && !campo.validador(this.value)) {
+                    this.style.borderColor = '#e74c3c';
+                } else if (this.value.trim()) {
+                    this.style.borderColor = '#27ae60';
+                }
+            });
 
-    document.getElementById('email').addEventListener('blur', function() {
-        if (!validarEmail(this.value)) {
-            this.style.borderColor = '#e74c3c';
-        } else {
-            this.style.borderColor = '#27ae60';
-        }
-    });
-
-    document.getElementById('telefono').addEventListener('blur', function() {
-        if (!validarTelefono(this.value)) {
-            this.style.borderColor = '#e74c3c';
-        } else {
-            this.style.borderColor = '#27ae60';
+            elemento.addEventListener('input', function() {
+                if (this.style.borderColor === 'rgb(231, 76, 60)') { // #e74c3c en RGB
+                    this.style.borderColor = '';
+                }
+            });
         }
     });
 
     function validarFormulario() {
         const datos = {
-            nombre: document.getElementById('nombre').value,
-            dni: document.getElementById('dni').value,
-            email: document.getElementById('email').value,
-            telefono: document.getElementById('telefono').value,
-            direccion: document.getElementById('direccion').value,
-            ciudad: document.getElementById('ciudad').value,
-            codigoPostal: document.getElementById('codigoPostal').value,
+            nombre: document.getElementById('nombre').value.trim(),
+            dni: document.getElementById('dni').value.trim(),
+            email: document.getElementById('email').value.trim(),
+            telefono: document.getElementById('telefono').value.trim(),
+            direccion: document.getElementById('direccion').value.trim(),
+            ciudad: document.getElementById('ciudad').value.trim(),
+            codigoPostal: document.getElementById('codigoPostal').value.trim(),
             contrasena: document.getElementById('contrasena').value
         };
 
+        console.log('Datos a validar:', datos); // Para debugging
+
+        // Verificar campos obligatorios
         for (let campo in datos) {
-            if (!datos[campo].trim()) {
-                mostrarMensaje('Todos los campos son obligatorios');
+            if (!datos[campo]) {
+                mostrarMensaje(`El campo ${campo} es obligatorio`);
+                document.getElementById(campo === 'email' ? 'email' : campo).focus();
                 return false;
             }
         }
 
+        // Validaciones específicas
         if (!validarNombre(datos.nombre)) {
-            mostrarMensaje('Nombre invalido. Ingrese un nombre valido');
+            mostrarMensaje('Nombre inválido. Solo letras y espacios, 2-50 caracteres');
+            document.getElementById('nombre').focus();
             return false;
         }
 
         if (!validarDNI(datos.dni)) {
-            mostrarMensaje('DNI invalido. Debe tener 8 dígitos');
+            mostrarMensaje('DNI inválido. Debe tener exactamente 8 dígitos');
+            document.getElementById('dni').focus();
             return false;
         }
 
         if (!validarEmail(datos.email)) {
-            mostrarMensaje('Email invalido');
+            mostrarMensaje('Email inválido');
+            document.getElementById('email').focus();
             return false;
         }
 
         if (!validarTelefono(datos.telefono)) {
-            mostrarMensaje('Telefono invalido. Debe empezar con 9 y tener 9 dígitos');
+            mostrarMensaje('Teléfono inválido. Debe empezar con 9 y tener 9 dígitos');
+            document.getElementById('telefono').focus();
             return false;
         }
 
         if (!validarDireccion(datos.direccion)) {
-            mostrarMensaje('Direccion invalida.');
+            mostrarMensaje('Dirección inválida. Debe tener entre 5 y 100 caracteres');
+            document.getElementById('direccion').focus();
             return false;
         }
 
         if (!validarCiudad(datos.ciudad)) {
-            mostrarMensaje('Ciudad invalida.');
+            mostrarMensaje('Ciudad inválida. Solo letras y espacios');
+            document.getElementById('ciudad').focus();
             return false;
         }
 
         if (!validarCodigoPostal(datos.codigoPostal)) {
             mostrarMensaje('Código postal inválido. Debe tener 5 dígitos');
+            document.getElementById('codigoPostal').focus();
             return false;
         }
 
         if (!validarContrasena(datos.contrasena)) {
-            mostrarMensaje('Contraseña debe tener mínimo 6 caracteres, una letra y un número');
+            mostrarMensaje('Contraseña debe tener mínimo 6 caracteres');
+            document.getElementById('contrasena').focus();
             return false;
         }
 
@@ -149,8 +159,16 @@ document.addEventListener('DOMContentLoaded', function() {
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
         
+        console.log('Formulario enviado'); // Para debugging
+        
+        // Ocultar mensajes previos
+        mensaje.style.display = 'none';
+        
         const datos = validarFormulario();
-        if (!datos) return;
+        if (!datos) {
+            console.log('Validación fallida');
+            return;
+        }
 
         const boton = form.querySelector('button[type="submit"]');
         const textoOriginal = boton.textContent;
@@ -158,33 +176,47 @@ document.addEventListener('DOMContentLoaded', function() {
         boton.disabled = true;
 
         try {
-            // Aquí harás la conexión a tu BD
+            console.log('Enviando datos:', datos); // Para debugging
+            
             const response = await fetch('../php/register.php', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json',
+                headers: {
+                    'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(datos)
             });
 
+            console.log('Response status:', response.status); // Para debugging
+
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                throw new Error('Respuesta no es JSON válido');
+            }
+
             const resultado = await response.json();
+            console.log('Resultado:', resultado); // Para debugging
 
             if (resultado.success) {
-                mostrarMensaje('¡Registro exitoso! Redirigiendo...', 'exito');
+                mostrarMensaje('¡Registro exitoso! Tu cuenta está pendiente de activación. Redirigiendo al login...', 'exito');
+                
+                // Limpiar formulario
+                form.reset();
+                
+                // Redireccionar después de 3 segundos
                 setTimeout(() => {
                     window.location.href = 'login.html';
-                }, 2000);
+                }, 3000);
             } else {
-                mostrarMensaje(resultado.message || 'Error en el registro');
+                mostrarMensaje(resultado.message || 'Error en el registro. Intenta nuevamente.');
             }
 
         } catch (error) {
-            mostrarMensaje('Error de conexión. Intenta de nuevo');
-            console.error('Error:', error);
+            console.error('Error completo:', error);
+            mostrarMensaje('Error de conexión. Verifica tu conexión a internet e intenta nuevamente.');
         } finally {
             // Restaurar botón
             boton.textContent = textoOriginal;
             boton.disabled = false;
         }
     });
-    
 });

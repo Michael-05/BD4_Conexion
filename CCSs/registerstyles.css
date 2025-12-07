@@ -232,7 +232,23 @@ button:hover::after {
     color: var(--primary);
     text-decoration: underline;
 }
+.mensaje-error {
+    background-color: #fee;
+    color: #c33;
+    border: 1px solid #fcc;
+    padding: 10px;
+    border-radius: 5px;
+    margin: 10px 0;
+}
 
+.mensaje-exito {
+    background-color: #efe;
+    color: #3c3;
+    border: 1px solid #cfc;
+    padding: 10px;
+    border-radius: 5px;
+    margin: 10px 0;
+}
 @media (max-width: 900px) {
     .container {
         flex-direction: column;

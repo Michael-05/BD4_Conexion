@@ -34,22 +34,20 @@
                 <a href="HTMLs/register.html" class="header__action header__action--register">Registrarse</a>
             </div>
             
-            <!-- Menú de usuario (inicialmente oculto) -->
             <div class="user-menu" id="user-menu" style="display: none;">
                 <button class="user-menu__toggle">
-                    <span id="user-name">Usuario</span>
+                    <div class="user-indicator">
+                        <i class="fas fa-user-circle"></i>
+                        <span id="user-name">Usuario</span>
+                    </div>
                     <i class="fas fa-caret-down"></i>
                 </button>
                 <div class="user-menu__dropdown">
-                    <a href="HTMLs/profile.html">Mi perfil</a>
-                    <a href="HTMLs/my-credits.html">Mis créditos</a>
-                    <a href="#" id="logout-link">Cerrar sesión</a>
+                    <a href="#" id="logout-link">
+                        <i class="fas fa-sign-out-alt"></i> Cerrar sesión
+                    </a>
                 </div>
             </div>
-            <div class="header__actions">
-                <a href="HTMLs/requestcredit.html" class="header__action header__action--register">Solicitar Credito</a>
-            </div>
-            <li class="nav__item"><a href="HTMLs/admin/dashboard.html" class="nav__link">Admin</a></li>
             <button class="header__menu-btn">
                 <i class="fas fa-bars"></i>
             </button>
@@ -77,9 +75,40 @@
             <li class="nav__item--mobile">
                 <a href="#footer" class="nav__link--mobile">Contacto</a>
             </li>
+
+             <div id="mobile-auth-section">
             <li class="nav__item--mobile">
-                <a href="HTMLs/requestcredit.html" class="nav__link--mobile header__action--register">Solicitar Credito</a>
+                <a href="HTMLs/login.html" class="nav__link--mobile header__action--login">Iniciar Sesión</a>
             </li>
+            <li class="nav__item--mobile">
+                <a href="HTMLs/register.html" class="nav__link--mobile header__action--register">Registrarse</a>
+            </li>
+        </div>
+        
+        <!-- Sección para usuarios autenticados (mobile) -->
+        <div id="mobile-user-section" style="display: none;">
+            <li class="nav__item--mobile">
+                <div class="user-indicator">
+                    <i class="fas fa-user-circle"></i>
+                    <span id="mobile-user-name">Usuario</span>
+                </div>
+            </li>
+            <li class="nav__item--mobile">
+                <a href="HTMLs/profile.html" class="nav__link--mobile">
+                    <i class="fas fa-user"></i> Mi perfil
+                </a>
+            </li>
+            <li class="nav__item--mobile">
+                <a href="HTMLs/my-credits.html" class="nav__link--mobile">
+                    <i class="fas fa-file-invoice-dollar"></i> Mis créditos
+                </a>
+            </li>
+            <li class="nav__item--mobile">
+                <a href="#" class="nav__link--mobile logout-link">
+                    <i class="fas fa-sign-out-alt"></i> Cerrar sesión
+                </a>
+            </li>
+        </div>
         </ul>
     </nav>
     <section class="hero">
@@ -356,7 +385,7 @@
                 <div class="footer__column">
                     <div class="footer__logo">
                         <div class="header__logo-icon">
-                            <img src="https://images.unsplash.com/photo-1613243555978-636c48dc653c?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&h=100&w=100" alt="Logo ZCERO" width="40" height="40">
+                            <img src="./IMGs/logowhite.webp" alt="Logo ZCERO" width="40" height="40">
                         </div>
                         <h1 class="footer__logo-text">ZC<span class="footer__logo-highlight">ERO</span></h1>
                     </div>
@@ -417,7 +446,7 @@
         </div>
     </footer>
     <script src="../js/credit-types.js"></script>
-    <script src="../js/main.js"></script>
+    <script src="../Zcero/JS/main.js"></script>
     <script src="../js/script_index.js"></script>
 </body>
 </html>

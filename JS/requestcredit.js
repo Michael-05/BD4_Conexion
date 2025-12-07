@@ -896,7 +896,7 @@ async function submitForm(formType) {
         
         hideLoadingIndicator();
         
-        if (response.ok) {
+        if (result.success) {
             showConfirmation();
         } else {
             showValidationMessage('Error al guardar la solicitud: ' + result);

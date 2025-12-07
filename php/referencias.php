@@ -2,18 +2,20 @@
 include("con_bd.php");
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $credito_id = $_POST['credito_id'];
-    $nombre = $_POST['nombre'];
-    $telefono = $_POST['telefono'];
-    $tipo = $_POST['tipo']; // Debe ser 'personal1' o 'personal2'
+    $credito_id = intval($_POST['credito_id']);
+    $nombre = pg_escape_string($conex, $_POST['nombre']);
+    $telefono = pg_escape_string($conex, $_POST['telefono']);
+    $tipo = pg_escape_string($conex, $_POST['tipo']);
 
     $sql = "INSERT INTO referencias (credito_id, nombre, telefono, tipo) 
-            VALUES ('$credito_id', '$nombre', '$telefono', '$tipo')";
-
-    if ($conex->query($sql)) {
-        echo "✅ Referencia guardada correctamente.";
+            VALUES ($1, $2, $3, $4)";
+    
+    $result = pg_query_params($conex, $sql, [$credito_id, $nombre, $telefono, $tipo]);
+    
+    if ($result) {
+        echo json_encode(['success' => true]);
     } else {
-        echo "❌ Error: " . $conex->error;
+        echo json_encode(['success' => false, 'error' => pg_last_error($conex)]);
     }
 }
 ?>

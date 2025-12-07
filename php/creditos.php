@@ -3,60 +3,74 @@ session_start();
 include("con_bd.php");
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // CORREGIDO: Obtener socio_id de la sesión o del POST
-    if (isset($_POST['socio_id'])) {
-        $socio_id = $_POST['socio_id'];
-    } elseif (isset($_SESSION['user_id'])) {
-        $socio_id = $_SESSION['user_id'];
-    } else {
+    $socio_id = isset($_POST['socio_id']) ? $_POST['socio_id'] : (isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null);
+    
+    if (!$socio_id) {
         die("Error: No se pudo identificar al socio");
     }
     
-    $tipo = $_POST['tipo'];
-    $monto = $_POST['monto_solicitado'];
-    $plazo = $_POST['plazo'];
-    $ingresos = $_POST['ingresos_mensuales'];
-    $deudas = $_POST['deudas_actuales'];
-    $obligaciones = $_POST['otras_obligaciones'];
+    // Validar y limpiar datos
+    $tipo = pg_escape_string($conex, $_POST['tipo']);
+    $monto = floatval($_POST['monto_solicitado']);
+    $plazo = intval($_POST['plazo']);
+    $ingresos = floatval($_POST['ingresos_mensuales']);
+    $deudas = floatval($_POST['deudas_actuales']);
+    $obligaciones = floatval($_POST['otras_obligaciones']);
     $autorizo_consulta = isset($_POST['autorizo_consulta']) ? 1 : 0;
     $autorizo_debito = isset($_POST['autorizo_debito']) ? 1 : 0;
     $fecha_reg = date('Y-m-d H:i:s');
-
-    // Generar número de crédito único
-    $numero_credito = 'CR-' . date('Ymd') . '-' . str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT);
-    
-    // Calcular capacidad de pago (30% de ingresos menos deudas y obligaciones)
     $capacidad_pago = ($ingresos * 0.30) - $deudas - $obligaciones;
+    $numero_credito = 'CR-' . date('Ymd') . '-' . str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT);
 
-    $uploadDir = 'uploads/';
-    if (!file_exists($uploadDir)) {
-        mkdir($uploadDir, 0777, true);
-    }
-    
+    // Manejo de archivos
     $dniFileName = '';
     if (isset($_FILES['dni_file']) && $_FILES['dni_file']['error'] == UPLOAD_ERR_OK) {
-        $dniFile = $_FILES['dni_file'];
-        $dniFileName = $uploadDir . uniqid('dni_') . '.' . pathinfo($dniFile['name'], PATHINFO_EXTENSION);
-        move_uploaded_file($dniFile['tmp_name'], $dniFileName);
+        $dniFileName = 'uploads/' . uniqid('dni_') . '.' . pathinfo($_FILES['dni_file']['name'], PATHINFO_EXTENSION);
+        move_uploaded_file($_FILES['dni_file']['tmp_name'], $dniFileName);
     }
     
     $payslipFileName = '';
     if (isset($_FILES['payslip_file']) && $_FILES['payslip_file']['error'] == UPLOAD_ERR_OK) {
-        $payslipFile = $_FILES['payslip_file'];
-        $payslipFileName = $uploadDir . uniqid('payslip_') . '.' . pathinfo($payslipFile['name'], PATHINFO_EXTENSION);
-        move_uploaded_file($payslipFile['tmp_name'], $payslipFileName);
+        $payslipFileName = 'uploads/' . uniqid('payslip_') . '.' . pathinfo($_FILES['payslip_file']['name'], PATHINFO_EXTENSION);
+        move_uploaded_file($_FILES['payslip_file']['tmp_name'], $payslipFileName);
     }
 
-    // CORREGIDO: usar socio_id en lugar de persona_id
+    // Consulta parametrizada
     $sql = "INSERT INTO creditos (numero_credito, socio_id, tipo, monto_solicitado, plazo, ingresos_mensuales, deudas_actuales, otras_obligaciones, capacidad_pago, autorizo_consulta, autorizo_debito, fecha_reg, dni_file, payslip_file) 
-            VALUES ('$numero_credito', '$socio_id', '$tipo', '$monto', '$plazo', '$ingresos', '$deudas', '$obligaciones', '$capacidad_pago', '$autorizo_consulta', '$autorizo_debito', '$fecha_reg', '$dniFileName', '$payslipFileName')";
-
-    if ($conex->query($sql)) {
-        echo "✅ Crédito guardado correctamente. Número: $numero_credito";
-        echo json_encode(['success' => true, 'numero_credito' => $numero_credito, 'credito_id' => $conex->insert_id]);
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id";
+    
+    $params = [
+        $numero_credito,
+        $socio_id,
+        $tipo,
+        $monto,
+        $plazo,
+        $ingresos,
+        $deudas,
+        $obligaciones,
+        $capacidad_pago,
+        $autorizo_consulta,
+        $autorizo_debito,
+        $fecha_reg,
+        $dniFileName,
+        $payslipFileName
+    ];
+    
+    $result = pg_query_params($conex, $sql, $params);
+    
+    if ($result) {
+        $row = pg_fetch_assoc($result);
+        $credito_id = $row['id'];
+        echo json_encode([
+            'success' => true,
+            'numero_credito' => $numero_credito,
+            'credito_id' => $credito_id
+        ]);
     } else {
-        echo "❌ Error: " . $conex->error;
-        echo json_encode(['success' => false, 'error' => $conex->error]);
+        echo json_encode([
+            'success' => false,
+            'error' => pg_last_error($conex)
+        ]);
     }
 }
 ?>

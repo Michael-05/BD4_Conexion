@@ -1,93 +1,169 @@
 <?php
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: POST');
-header('Access-Control-Allow-Headers: Content-Type');
+if (!headers_sent()) {
+    header('Content-Type: application/json; charset=utf-8');
+    header('Access-Control-Allow-Origin: *');
+}
 
-// Solo aceptar POST
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     echo json_encode(['success' => false, 'message' => 'Método no permitido']);
     exit;
 }
 
-// Leer datos JSON
-$input = file_get_contents('php://input');
-$data = json_decode($input, true);
+// Insertamos en MongoDB
 
-// Validar que llegaron los datos
-if (!$data) {
-    echo json_encode(['success' => false, 'message' => 'Datos inválidos']);
-    exit;
+function insertarEnMongoDB($datos) {
+    try {
+        $cliente = new MongoDB\Client("mongodb://localhost:27017");
+        $db = $cliente->scooperativo;
+        $coleccion = $db->usuarios;
+
+        $documento = [
+            'nombre_completo' => $datos['nombre_completo'],
+            'dni' => $datos['dni'],
+            'correo' => $datos['correo'],
+            'telefono' => $datos['telefono'],
+            'direccion' => $datos['direccion'],
+            'ciudad' => $datos['ciudad'],
+            'codigo_postal' => $datos['codigo_postal'],
+            'fecha_registro' => new MongoDB\BSON\UTCDateTime()
+
+        ];
+
+        $resultado = $coleccion->insertOne($documento);
+        return (string) $resultado->getInsertedId();
+    } catch (Exception $e) {
+        error_log("Error al insertar en MongoDB: " . $e->getMessage());
+        return null;
+    }
 }
 
-// Extraer y limpiar datos - CORREGIDO para coincidir con estructura BD
-$nombre_completo = trim($data['nombre'] ?? '');
-$dni = trim($data['dni'] ?? '');
-$correo = trim($data['email'] ?? ''); // email -> correo
-$telefono = trim($data['telefono'] ?? '');
-$direccion = trim($data['direccion'] ?? '');
-$ciudad = trim($data['ciudad'] ?? '');
-$codigo_postal = trim($data['codigoPostal'] ?? '');
-$contraseña = $data['contraseña'] ?? '';
+function insertarEnCassandra($datos) {
+    try {
+        $cluster = Cassandra::cluster()->build();
+        $session = $cluster->connect('scooperativo');
 
-// Validaciones básicas del servidor
-if (empty($nombre_completo) || empty($dni) || empty($correo) || empty($contraseña)) {
-    echo json_encode(['success' => false, 'message' => 'Campos obligatorios faltantes']);
-    exit;
-}
+        $query = 'INSERT INTO usuarios (nombre_completo, dni, correo, telefono, direccion, ciudad, codigo_postal, fecha_registro) 
+                  VALUES (?, ?, ?, ?, ?, ?, ?, toTimestamp(now()))';
+        $statement = new Cassandra\SimpleStatement($query);
+        $options = new Cassandra\ExecutionOptions([
+            'arguments' => [
+                $datos['nombre_completo'],
+                $datos['dni'],
+                $datos['correo'],
+                $datos['telefono'],
+                $datos['direccion'],
+                $datos['ciudad'],
+                $datos['codigo_postal']
+            ]
+        ]);
 
-// Validar formato DNI
-if (!preg_match('/^\d{8}$/', $dni)) {
-    echo json_encode(['success' => false, 'message' => 'DNI inválido']);
-    exit;
-}
-
-// Validar formato email
-if (!filter_var($correo, FILTER_VALIDATE_EMAIL)) {
-    echo json_encode(['success' => false, 'message' => 'Email inválido']);
-    exit;
+        $session->execute($statement, $options);
+        return true;
+    } catch (Exception $e) {
+        error_log("Error al insertar en Cassandra: " . $e->getMessage());
+        return false;
+    }
 }
 
 try {
-    // Incluir conexión
     include("con_bd.php");
     
-    // Verificar si el email o DNI ya existe
-    $stmt = $conex->prepare("SELECT id FROM socios WHERE correo = ? OR dni = ?");
-    $stmt->bind_param("ss", $correo, $dni);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    
-    if ($result->fetch_assoc()) {
-        echo json_encode(['success' => false, 'message' => 'Email o DNI ya registrado']);
-        exit;
-    }
-    $stmt = $conex->prepare("SELECT id FROM socios WHERE dni = ?");
-    $stmt->bind_param("s", $dni);
-    $stmt->execute();
-    
-    if ($stmt->get_result()->num_rows > 0) {
-        echo json_encode(['success' => false, 'message' => 'DNI ya registrado']);
-        exit;
+    $input = file_get_contents('php://input');
+    $data = json_decode($input, true);
+
+    if (!$data) {
+        throw new Exception('Datos JSON inválidos o vacíos');
     }
 
-    // Hash de la contraseña
-    $contraseñaHash = password_hash($contraseña, PASSWORD_DEFAULT);
+    $nombre_completo = trim($data['nombre'] ?? '');
+    $dni = trim($data['dni'] ?? '');
+    $correo = trim($data['email'] ?? '');
+    $telefono = trim($data['telefono'] ?? '');
+    $direccion = trim($data['direccion'] ?? '');
+    $ciudad = trim($data['ciudad'] ?? '');
+    $codigo_postal = trim($data['codigoPostal'] ?? '');
+    $contrasena = $data['contrasena'] ?? '';
+
+    if (empty($nombre_completo) || empty($dni) || empty($correo) || empty($contrasena)) {
+        throw new Exception('Campos obligatorios faltantes');
+    }
+
+    if (!preg_match('/^\d{8}$/', $dni)) {
+        throw new Exception('DNI debe tener 8 dígitos');
+    }
+
+    if (!filter_var($correo, FILTER_VALIDATE_EMAIL)) {
+        throw new Exception('Formato de email inválido');
+    }
+
+    if (!preg_match('/^9\d{8}$/', $telefono)) {
+        throw new Exception('Teléfono debe empezar con 9 y tener 9 dígitos');
+    }
+
+    if (strlen($contrasena) < 6) {
+        throw new Exception('Contraseña debe tener al menos 6 caracteres');
+    }
+
+    $contrasenaHash = password_hash($contrasena, PASSWORD_DEFAULT);
     
-    // CORREGIDO: Insertar en tabla socios con los campos correctos
-    $stmt = $conex->prepare("INSERT INTO socios (dni, nombre_completo, correo, telefono, direccion, ciudad, codigo_postal, contraseña, estado, fecha_registro) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pendiente', NOW())");
-    $stmt->bind_param("ssssssss", $dni, $nombre_completo, $correo, $telefono, $direccion, $ciudad, $codigo_postal, $contraseñaHash);
-    $resultado = $stmt->execute();
+    $sql = "INSERT INTO socios (dni, nombre_completo, correo, telefono, direccion, ciudad, codigo_postal, contraseña, estado, rol) 
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'activo', 'socio') RETURNING id";
     
-    if ($resultado) {
-        echo json_encode(['success' => true, 'message' => 'Usuario registrado exitosamente. Tu cuenta está pendiente de activación.']);
-    } else {
-        echo json_encode(['success' => false, 'message' => 'Error al registrar usuario: ' . $conex->error]);
+    $params = [
+        $dni,
+        $nombre_completo,
+        $correo,
+        $telefono,
+        $direccion,
+        $ciudad,
+        $codigo_postal,
+        $contrasenaHash
+    ];
+    
+    $result = pg_query_params($conex, $sql, $params);
+    
+    if (!$result) {
+        throw new Exception('Error al registrar usuario: ' . pg_last_error($conex));
     }
     
+    $row = pg_fetch_assoc($result);
+    $nuevo_id = $row['id'];
+
+    $datos_comunes = [
+        'dni' => $dni,
+        'nombre_completo' => $nombre_completo,
+        'correo' => $correo,
+        'telefono' => $telefono,
+        'direccion' => $direccion,
+        'ciudad' => $ciudad,
+        'codigo_postal' => $codigo_postal,
+        'contrasena_hash' => $contrasenaHash
+    ];
+
+    $mongo_id = insertarEnMongoDB($datos_comunes);
+
+    $cassandra_id = insertarEnCassandra($datos_comunes);
+    
+    echo json_encode([
+        'success' => true, 
+        'message' => 'Usuario registrado exitosamente',
+        'user_id' => $nuevo_id
+    ]);
+    
 } catch (Exception $e) {
-    error_log($e->getMessage());
-    echo json_encode(['success' => false, 'message' => 'Error del servidor']);
+    echo json_encode([
+        'success' => false, 
+        'message' => $e->getMessage()
+    ]);
+} finally {
+    if (isset($conex) && $conex) {
+        pg_close($conex);
+    }
 }
 ?>

@@ -153,9 +153,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 mostrarExito(response.message + ' Redirigiendo...');
 
-                // Redirigir después de 1.5 segundos
+                // Redirigir después de 1.5 segundos - RUTA CORREGIDA
                 setTimeout(() => {
-                    window.location.href = response.redirect;
+                    window.location.href = "../index.html";
                 }, 1500);
             } else {
                 mostrarError(response.message);
