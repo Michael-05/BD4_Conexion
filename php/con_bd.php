@@ -21,5 +21,26 @@ if (!$conex) {
     ]));
 }
 
+function conectaMongoDB() {
+    try {
+        return new MongoDB\Client("mongodb://localhost:27017");
+    } catch (Exception $e) {
+        error_log("Error al conectar a MongoDB: " . $e->getMessage());
+        return null;
+    }
+}
+
+function conectaCassandra() {
+    try {
+        $cluster = Cassandra::cluster()
+            ->withContactPoints('127.0.0.1')
+            ->withPort(9042)
+            -withCredentials('cassandra', 'cassandra')
+            ->build();
+    } catch (Exception $e) {
+        error_log("Error al conectar a Cassandra: " . $e->getMessage());
+        return null;
+    }
+}
 pg_set_client_encoding($conex, "UTF8");
 ?>
